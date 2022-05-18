@@ -10,13 +10,13 @@ const bodyParser = require('body-parser');
 const { response } = require('express');
 app.use(bodyParser.urlencoded({extended: true}));
 
-function generateRandomString(length, chars) {
-  var results = '';
-  for (var i = length; i > 0; i--) {
+const generateRandomString = function(length, chars) {
+  let results = '';
+  for (let i = length; i > 0; i--) {
     results += chars[Math.round(Math.random() * (chars.length - 1))];
   }
   return results;
-}
+};
 //console.log(generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'));
 
 
@@ -71,19 +71,19 @@ app.get('/hello', (req, res) => {
   res.send('<html><body>Hello <b>World</b></body></html>\n');
 });
 
-app.get('/set', (req, res) => {
+/*app.get('/set', (req, res) => {
   const a = 1;
   res.send(`a = ${a}`);
- });
+});
  
 app.get('/fetch', (req, res) => {
   res.send(`a = ${a}`);
- });
+});*/
 
- // Catchall route handler
- app.get('*', (req, res) => {
+// Catchall route handler
+app.get('*', (req, res) => {
   res.status(404).send('<h1>404: This page does not exist</h1>');
- });
+});
 
 app.listen(PORT, () => {
   console.log(`Example app listeninng on port: ${PORT}!`);
