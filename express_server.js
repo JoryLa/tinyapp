@@ -1,6 +1,14 @@
 const express = require('express');
 const app = express();
 const PORT = 8080;
+const morgan = require('morgan');
+
+//middleware
+app.use(morgan('dev'));
+
+const bodyParser = require('body-parser');
+const { response } = require('express');
+app.use(bodyParser.urlencoded({extended: true}));
 
 function generateRandomString(length, chars) {
   var results = '';
@@ -16,37 +24,47 @@ app.set('view engine', "ejs");
 
 const urlDatabase = {
   'b2xVn2': 'http://www.lighthouselabs.ca',
-  '9sm5xK': 'http://www.google.com'
+  '9sm5xK': 'http://www.google.com',
 };
 
-const bodyParser = require('body-parser');
-app.use(bodyParser.urlencoded({extended: true}));
-
 app.post("/urls", (req, res) => {
-  console.log(req.body);  // Log the POST request body to the console
-  res.send(generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'));
+  const longURL = req.body.longURL;  // Log the POST request body to the console
+  const shortURL = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+  urlDatabase[shortURL] = longURL;
+  //console.log(urlDatabase);
+  res.redirect('/urls/' + shortURL);
 });
 
+// URLs page
 app.get('/urls', (req, res) => {
   const templateVars = { urls: urlDatabase };
   res.render('urls_index', templateVars);
 });
 
+// Create new URL form page
 app.get("/urls/new", (req, res) => {
   res.render("urls_new");
 });
+
 
 app.get('/urls/:shortURL', (req, res) => {
   const templateVars = { shortURL: req.params.shortURL, longURL: urlDatabase[req.params.shortURL] };
   res.render('urls_show', templateVars);
 });
 
-app.get('/', (req, res) => {
-  res.send('Hello!');
+app.get('/u/:shortURL', (req, res) => {
+  const shortURL = req.params.shortURL;
+  const longURL = urlDatabase[shortURL];
+  //console.log(shortURL);
+  res.redirect(longURL);
 });
 
 app.get('/urls.json', (req, res) => {
   res.json(urlDatabase);
+});
+
+app.get('/', (req, res) => {
+  res.send('Hello!');
 });
 
 app.get('/hello', (req, res) => {
@@ -60,6 +78,11 @@ app.get('/set', (req, res) => {
  
 app.get('/fetch', (req, res) => {
   res.send(`a = ${a}`);
+ });
+
+ // Catchall route handler
+ app.get('*', (req, res) => {
+  res.status(404).send('<h1>404: This page does not exist</h1>');
  });
 
 app.listen(PORT, () => {
