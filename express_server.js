@@ -25,7 +25,7 @@ const urlDatabase = {
   '9sm5xK': 'http://www.google.com',
 };
 
-const userDatabase = {
+const users = {
   'alice': {
     id: 'alice',
     email: 'a@a.com',
@@ -46,8 +46,9 @@ app.get('/register', (req, res) => {
 // URLs page
 app.get('/urls', (req, res) => {
   console.log(req.cookies)
+  const userID = req.cookies['user_ID'];
   const templateVars = { 
-    username: req.cookies['username'] || null,
+    user: users[userID],
     urls: urlDatabase 
   };
   res.render('urls_index', templateVars);
@@ -55,16 +56,18 @@ app.get('/urls', (req, res) => {
 
 // Create new URL form page
 app.get("/urls/new", (req, res) => {
+  const userID = req.cookies['user_ID'];
   const templateVars = {
-    username: req.cookies['username'],
+    user: users[userID],
     urls: urlDatabase
   }
   res.render("urls_new" , templateVars);
 });
 
 app.get('/urls/:shortURL', (req, res) => {
+  const userID = req.cookies['user_ID'];
   const templateVars = { 
-    username: req.cookies['username'],
+    user: users[userID],
     shortURL: req.params.shortURL, 
     longURL: urlDatabase[req.params.shortURL] 
   };
@@ -88,8 +91,10 @@ app.post('/register', (req, res) => {
     email: req.body.email,
     password: req.body.password
   }
-  userDatabase[user.id] = user;
-  res.redirect('/login');
+  users[user.id] = user;
+  res.cookie('user_ID', user.id);
+  console.log(users);
+  res.redirect('/urls');
   //const user_ID = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
   //userDatabase[user_ID] = user
 });
@@ -114,14 +119,23 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
-  const { username } = req.body;
-  res.cookie('username', username);
-  res.redirect('/urls');
+  const email = req.body.email;
+  const { password } = req.body;
+  //console.log('req.body', req.body);
+  for (let user in users) {
+    if (user.email === email /*&& user.password === password*/) {
+      res.cookie('user_ID', user.id);
+      res.redirect('/urls');
+    }
+  };
+
+  /*const user = Object.values(users).find(user => user.email === email)
+  res.cookie('user_ID', user);
+  res.redirect('/urls');*/
 });
 
 app.post('/logout', (req, res) => {
-  const { username } = req.body;
-  res.clearCookie('username', username);
+  res.clearCookie('user_ID');
   res.redirect('/urls');
 })
 
