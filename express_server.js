@@ -45,7 +45,6 @@ app.get('/register', (req, res) => {
 
 // URLs page
 app.get('/urls', (req, res) => {
-  console.log(req.cookies)
   const userID = req.cookies['user_ID'];
   const templateVars = { 
     user: users[userID],
@@ -77,7 +76,6 @@ app.get('/urls/:shortURL', (req, res) => {
 app.get('/u/:shortURL', (req, res) => {
   const { shortURL } = req.params;
   const longURL = urlDatabase[shortURL];
-  //console.log(shortURL);
   res.redirect(longURL);
 });
 
@@ -91,19 +89,31 @@ app.post('/register', (req, res) => {
     email: req.body.email,
     password: req.body.password
   }
+  if (!user.email || !user.password) {
+    return res.status(400).send('<h1>Error 400: Please enter E-mail and Password</h1>');
+  };
+
+  //const newEmail = Object.values(users).find(user => user.email === email)
+  for (let tempUser in users) {
+    //console.log('tempUser', tempUser);
+    const newEmail = req.body.email;
+    //console.log('users[tempUser]', users[tempUser])
+    if (newEmail === users[tempUser].email) {
+    //console.log(users);
+    return res.status(400).send('<h1>Error 400: E-mail already in use</h1>');
+    }
+  };
+
   users[user.id] = user;
   res.cookie('user_ID', user.id);
-  console.log(users);
   res.redirect('/urls');
-  //const user_ID = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
-  //userDatabase[user_ID] = user
+  console.log(users);
 });
 
 app.post("/urls", (req, res) => {
   const longURL = req.body.longURL;  // Log the POST request body to the console
   const shortURL = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
   urlDatabase[shortURL] = longURL;
-  //console.log(urlDatabase);
   res.redirect('/urls/' + shortURL);
 });
 
@@ -121,7 +131,6 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 app.post('/login', (req, res) => {
   const email = req.body.email;
   const { password } = req.body;
-  //console.log('req.body', req.body);
   for (let user in users) {
     if (user.email === email /*&& user.password === password*/) {
       res.cookie('user_ID', user.id);
