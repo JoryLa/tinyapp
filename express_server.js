@@ -38,9 +38,18 @@ const users = {
   },
 };
 
+app.get('/', (req, res) => {
+  res.render('home');
+});
+
 //Regisration page
 app.get('/register', (req, res) => {
   res.render('register');
+});
+
+//Login page
+app.get('/login', (req, res) => {
+  res.render('login');
 });
 
 // URLs page
@@ -95,11 +104,8 @@ app.post('/register', (req, res) => {
 
   //const newEmail = Object.values(users).find(user => user.email === email)
   for (let tempUser in users) {
-    //console.log('tempUser', tempUser);
     const newEmail = req.body.email;
-    //console.log('users[tempUser]', users[tempUser])
     if (newEmail === users[tempUser].email) {
-    //console.log(users);
     return res.status(400).send('<h1>Error 400: E-mail already in use</h1>');
     }
   };
@@ -108,6 +114,23 @@ app.post('/register', (req, res) => {
   res.cookie('user_ID', user.id);
   res.redirect('/urls');
   console.log(users);
+});
+
+app.post('/login', (req, res) => {
+  const email = req.body.email;
+  const password = req.body.password;
+  for (let user in users) {
+    if (email === users[user].email && password === users[user].password) {
+      users[user.id] = user;
+      res.cookie('user_ID', user.id);
+      res.redirect('/urls');
+    }
+  }
+  return res.status(404).send('<h1>404: E-mail or Password not found</h1>')
+
+  /*const user = Object.values(users).find(user => user.email === email)
+  res.cookie('user_ID', user);
+  res.redirect('/urls');*/
 });
 
 app.post("/urls", (req, res) => {
@@ -128,24 +151,9 @@ app.post('/urls/:shortURL/delete', (req, res) => {
   res.redirect('/urls');
 });
 
-app.post('/login', (req, res) => {
-  const email = req.body.email;
-  const { password } = req.body;
-  for (let user in users) {
-    if (user.email === email /*&& user.password === password*/) {
-      res.cookie('user_ID', user.id);
-      res.redirect('/urls');
-    }
-  };
-
-  /*const user = Object.values(users).find(user => user.email === email)
-  res.cookie('user_ID', user);
-  res.redirect('/urls');*/
-});
-
 app.post('/logout', (req, res) => {
   res.clearCookie('user_ID');
-  res.redirect('/urls');
+  res.redirect('/');
 })
 
 // Catchall route handler
