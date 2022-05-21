@@ -1,20 +1,23 @@
 const express = require('express');
 const app = express();
 const PORT = 8080;
-const cookieParser = require('cookie-parser');
+//const cookieParser = require('cookie-parser');
+const cookieSession = require('cookie-session');
 const bodyParser = require('body-parser');
-const { response } = require('express');
 const morgan = require('morgan');
-const req = require('express/lib/request');
-const { redirect } = require('express/lib/response');
 const bcrypt = require('bcryptjs');
 
 //middleware
 app.set('view engine', "ejs");
-app.use(cookieParser())
+//app.use(cookieParser())
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(morgan('dev'));
+app.use(cookieSession({
+  name: 'Jar',
+  keys: ['super', 'secret', 'chocolate', 'chips']
+}));
 
+// User ID and Short URL generator function
 const generateRandomString = function(length, chars) {
   let results = '';
   for (let i = length; i > 0; i--) {
@@ -23,32 +26,22 @@ const generateRandomString = function(length, chars) {
   return results;
 };
 
-/*const urlDatabase = {
-  'b2xVn2': 'http://www.lighthouselabs.ca',
-  '9sm5xK': 'http://www.google.com',
-};*/
-
-const urlDatabase = {
-  //'b2xVn2': 'http://www.lighthouselabs.ca',
-  //'9sm5xK': 'http://www.google.com',
-  b6UTxQ: {
-        longURL: "https://www.tsn.ca",
-        userID: "alice"
-    },
-    i3BoGr: {
-        longURL: "https://www.google.ca",
-        userID: "bob"
-    }
+// Look up user by email helper function
+const getUserByEmail = function(email, users) {
+  
+  return user;
 };
 
-/*const findKey = function(object, callback) {
-  let keys = Object.keys(object);
-  for (let key of keys) {
-    if (callback(object[key])) {
-      return key;
-    }
+const urlDatabase = {
+  b6UTxQ: {
+    longURL: "https://www.tsn.ca",
+    userID: "alice"
+  },
+  i3BoGr: {
+    longURL: "https://www.google.ca",
+    userID: "bob"
   }
-};*/
+};
 
 const users = {
   'alice': {
@@ -79,43 +72,46 @@ app.get('/login', (req, res) => {
 
 // URLs page
 app.get('/urls', (req, res) => {
-  const userID = req.cookies['user_ID'];
+  const userID = req.session['user_ID'];
   let userURLDB = {};
   for (let url in urlDatabase) {
     if (urlDatabase[url].userID === userID) {
       userURLDB[url] = urlDatabase[url];
     }
   }
-  const templateVars = { 
+  
+  const templateVars = {
     user: users[userID],
-    urls: userURLDB 
+    urls: userURLDB
   };
+  
   res.render('urls_index', templateVars);
 });
 
 // Create new URL form page
 app.get("/urls/new", (req, res) => {
-  const userID = req.cookies['user_ID'];
+  const userID = req.session['user_ID'];
+  
+  if (!userID) {
+    res.redirect('/login');
+  }
+
   const templateVars = {
     user: users[userID],
     urls: urlDatabase
-  }
-  if (!userID) {
-    res.redirect('/login')
-  }
+  };
+  
   res.render("urls_new" , templateVars);
-
 });
 
 app.get('/urls/:shortURL', (req, res) => {
-  console.log('req', req, 'res', res);
-  const userID = req.cookies['user_ID'];
-  const templateVars = { 
+  const userID = req.session['user_ID'];
+  const templateVars = {
     user: users[userID],
-    shortURL: req.params.shortURL, 
+    shortURL: req.params.shortURL,
     longURL: urlDatabase[req.params.shortURL].longURL
   };
-  //console.log('urlDatabase[req.params.shortURL]', urlDatabase[req.params.shortURL])
+  
   res.render('urls_show', templateVars);
 });
 
@@ -131,21 +127,21 @@ app.get('/urls.json', (req, res) => {
 
 // POST register
 app.post('/register', (req, res) => {
-  const email = req.body.email
-  const password = req.body.password
+  const email = req.body.email;
+  const password = req.body.password;
 
   // Check if email or password are falsey
   if (!email || !password) {
     return res.status(400).send('<h1>Error 400: Please enter E-mail and Password</h1>');
-  };
+  }
 
   // Check in email is already in use
   for (let tempUser in users) {
     const newEmail = req.body.email;
     if (newEmail === users[tempUser].email) {
-    return res.status(400).send('<h1>Error 400: E-mail already in use</h1>');
+      return res.status(400).send('<h1>Error 400: E-mail already in use</h1>');
     }
-  };
+  }
 
   // Create new user object
   const id = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
@@ -161,46 +157,43 @@ app.post('/register', (req, res) => {
 
   // Update users database
   users[id] = newUser;
-  res.cookie('user_ID', newUser.id);
+  req.session.user_ID = newUser.id;
+
   res.redirect('/urls');
-  console.log(users);
 });
 
 // POST login
 app.post('/login', (req, res) => {
-  console.log('users', users);
   const email = req.body.email;
   const password = req.body.password;
-  
+
   // Check if email and password match
   for (let user in users) {
-    console.log('user', user)
     if (email === users[user].email && bcrypt.compareSync(password, users[user].password)) {
-      res.cookie('user_ID', users[user].id);
+      req.session.user_ID = users[user].id;
+      //res.cookie('user_ID', users[user].id);
       return res.redirect('/urls');
-    } 
+    }
   }
-  return res.status(404).send('<h1>404: E-mail or Password not found</h1>')
+  return res.status(404).send('<h1>404: E-mail or Password not found</h1>');
 });
 
 app.post("/urls", (req, res) => {
   const shortURL = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
   urlDatabase[shortURL] = {
     longURL: req.body.longURL,
-    userID: req.cookies['user_ID']
-  }
-  console.log(urlDatabase);
+    userID: req.session['user_ID']
+  };
+
   res.redirect('/urls/' + shortURL);
 });
 
 app.post('/urls/:shortURL', (req, res) => {
   urlDatabase[req.params.shortURL] = {
     longURL: req.body.longURL,
-    userID: req.cookies['user_ID']
-  }
-  console.log('urlDatabase ',urlDatabase)
+    userID: req.session['user_ID']
+  };
 
-  
   res.redirect('/urls');
 });
 
@@ -211,9 +204,9 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 });
 
 app.post('/logout', (req, res) => {
-  res.clearCookie('user_ID');
+  req.session = null;
   res.redirect('/urls');
-})
+});
 
 // Catchall route handler
 app.get('*', (req, res) => {
