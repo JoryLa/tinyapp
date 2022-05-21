@@ -7,6 +7,7 @@ const { response } = require('express');
 const morgan = require('morgan');
 const req = require('express/lib/request');
 const { redirect } = require('express/lib/response');
+const bcrypt = require('bcryptjs');
 
 //middleware
 app.set('view engine', "ejs");
@@ -128,17 +129,17 @@ app.get('/urls.json', (req, res) => {
   res.json(urlDatabase);
 });
 
+// POST register
 app.post('/register', (req, res) => {
-  const user = {
-    id: generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'),
-    email: req.body.email,
-    password: req.body.password
-  }
-  if (!user.email || !user.password) {
+  const email = req.body.email
+  const password = req.body.password
+
+  // Check if email or password are falsey
+  if (!email || !password) {
     return res.status(400).send('<h1>Error 400: Please enter E-mail and Password</h1>');
   };
 
-  //const newEmail = Object.values(users).find(user => user.email === email)
+  // Check in email is already in use
   for (let tempUser in users) {
     const newEmail = req.body.email;
     if (newEmail === users[tempUser].email) {
@@ -146,28 +147,40 @@ app.post('/register', (req, res) => {
     }
   };
 
-  users[user.id] = user;
-  res.cookie('user_ID', user.id);
+  // Create new user object
+  const id = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
+
+  const salt = bcrypt.genSaltSync(10);
+  const hash = bcrypt.hashSync(password, salt);
+
+  const newUser = {
+    id,
+    email,
+    password: hash
+  };
+
+  // Update users database
+  users[id] = newUser;
+  res.cookie('user_ID', newUser.id);
   res.redirect('/urls');
   console.log(users);
 });
 
+// POST login
 app.post('/login', (req, res) => {
   console.log('users', users);
   const email = req.body.email;
   const password = req.body.password;
+  
+  // Check if email and password match
   for (let user in users) {
     console.log('user', user)
-    if (email === users[user].email && password === users[user].password) {
-      // users[user.id] = user;
+    if (email === users[user].email && bcrypt.compareSync(password, users[user].password)) {
       res.cookie('user_ID', users[user].id);
       return res.redirect('/urls');
     } 
   }
   return res.status(404).send('<h1>404: E-mail or Password not found</h1>')
-  /*const user = Object.values(users).find(user => user.email === email)
-  res.cookie('user_ID', user);
-  res.redirect('/urls');*/
 });
 
 app.post("/urls", (req, res) => {
