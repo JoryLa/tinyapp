@@ -5,6 +5,8 @@ const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 const { response } = require('express');
 const morgan = require('morgan');
+const req = require('express/lib/request');
+const { redirect } = require('express/lib/response');
 
 //middleware
 app.set('view engine', "ejs");
@@ -20,10 +22,32 @@ const generateRandomString = function(length, chars) {
   return results;
 };
 
-const urlDatabase = {
+/*const urlDatabase = {
   'b2xVn2': 'http://www.lighthouselabs.ca',
   '9sm5xK': 'http://www.google.com',
+};*/
+
+const urlDatabase = {
+  //'b2xVn2': 'http://www.lighthouselabs.ca',
+  //'9sm5xK': 'http://www.google.com',
+  b6UTxQ: {
+        longURL: "https://www.tsn.ca",
+        userID: "alice"
+    },
+    i3BoGr: {
+        longURL: "https://www.google.ca",
+        userID: "bob"
+    }
 };
+
+/*const findKey = function(object, callback) {
+  let keys = Object.keys(object);
+  for (let key of keys) {
+    if (callback(object[key])) {
+      return key;
+    }
+  }
+};*/
 
 const users = {
   'alice': {
@@ -55,9 +79,15 @@ app.get('/login', (req, res) => {
 // URLs page
 app.get('/urls', (req, res) => {
   const userID = req.cookies['user_ID'];
+  let userURLDB = {};
+  for (let url in urlDatabase) {
+    if (urlDatabase[url].userID === userID) {
+      userURLDB[url] = urlDatabase[url];
+    }
+  }
   const templateVars = { 
     user: users[userID],
-    urls: urlDatabase 
+    urls: userURLDB 
   };
   res.render('urls_index', templateVars);
 });
@@ -69,22 +99,28 @@ app.get("/urls/new", (req, res) => {
     user: users[userID],
     urls: urlDatabase
   }
+  if (!userID) {
+    res.redirect('/login')
+  }
   res.render("urls_new" , templateVars);
+
 });
 
 app.get('/urls/:shortURL', (req, res) => {
+  console.log('req', req, 'res', res);
   const userID = req.cookies['user_ID'];
   const templateVars = { 
     user: users[userID],
     shortURL: req.params.shortURL, 
-    longURL: urlDatabase[req.params.shortURL] 
+    longURL: urlDatabase[req.params.shortURL].longURL
   };
+  //console.log('urlDatabase[req.params.shortURL]', urlDatabase[req.params.shortURL])
   res.render('urls_show', templateVars);
 });
 
 app.get('/u/:shortURL', (req, res) => {
   const { shortURL } = req.params;
-  const longURL = urlDatabase[shortURL];
+  const longURL = urlDatabase[shortURL].longURL;
   res.redirect(longURL);
 });
 
@@ -117,31 +153,41 @@ app.post('/register', (req, res) => {
 });
 
 app.post('/login', (req, res) => {
+  console.log('users', users);
   const email = req.body.email;
   const password = req.body.password;
   for (let user in users) {
+    console.log('user', user)
     if (email === users[user].email && password === users[user].password) {
-      users[user.id] = user;
-      res.cookie('user_ID', user.id);
-      res.redirect('/urls');
-    }
+      // users[user.id] = user;
+      res.cookie('user_ID', users[user].id);
+      return res.redirect('/urls');
+    } 
   }
   return res.status(404).send('<h1>404: E-mail or Password not found</h1>')
-
   /*const user = Object.values(users).find(user => user.email === email)
   res.cookie('user_ID', user);
   res.redirect('/urls');*/
 });
 
 app.post("/urls", (req, res) => {
-  const longURL = req.body.longURL;  // Log the POST request body to the console
   const shortURL = generateRandomString(6, '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ');
-  urlDatabase[shortURL] = longURL;
+  urlDatabase[shortURL] = {
+    longURL: req.body.longURL,
+    userID: req.cookies['user_ID']
+  }
+  console.log(urlDatabase);
   res.redirect('/urls/' + shortURL);
 });
 
 app.post('/urls/:shortURL', (req, res) => {
-  urlDatabase[req.params.shortURL] = req.body.longURL;
+  urlDatabase[req.params.shortURL] = {
+    longURL: req.body.longURL,
+    userID: req.cookies['user_ID']
+  }
+  console.log('urlDatabase ',urlDatabase)
+
+  
   res.redirect('/urls');
 });
 
@@ -153,7 +199,7 @@ app.post('/urls/:shortURL/delete', (req, res) => {
 
 app.post('/logout', (req, res) => {
   res.clearCookie('user_ID');
-  res.redirect('/');
+  res.redirect('/urls');
 })
 
 // Catchall route handler
