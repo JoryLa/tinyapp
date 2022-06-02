@@ -18,7 +18,6 @@ TinyApp is a full stack web application built with Node and Express that allows 
 ## Known Issues
 
 - Have yet to implement helper functions and test with mocha/chai.
-- Could look cleaner once I get a better handle of HTML and CSS.
 
 ## Final Product
   My URLs page
